@@ -71,14 +71,7 @@ El modelo relacional fue diseñado utilizando **MySQL Workbench**, permitiendo v
 | hospitales | Sedes hospitalarias |
 | citas | Citas médicas programadas |
 | recetas | Prescripciones de medicamentos |
-| bitacora_errores | Registro de errores del sistema |
+| logs_errores | Registro de errores del sistema (procedimiento, tabla, código, mensaje, fecha/hora) |
 
----
-
-## Tecnologías Utilizadas
-
-- MySQL 8.0
-- MySQL Workbench
-- Microsoft Excel (para análisis inicial)
 
 ![alt text](modelo_final.png)

@@ -1,5 +1,3 @@
-
-
 DELIMITER $$
 
 -- Procedimiento para registrar un nuevo hospital
@@ -19,8 +17,8 @@ BEGIN
             lc_codigo_error = RETURNED_SQLSTATE,
             lc_descripcion_error = MESSAGE_TEXT;
 
-        INSERT INTO bitacora_errores(tabla, codigo, descripcion) 
-        VALUES ('hospitales', lc_codigo_error, lc_descripcion_error);
+        INSERT INTO logs_errores(nombre_procedimiento, nombre_tabla, codigo_error, mensaje_error) 
+        VALUES ('proc_registrar_hospital', 'hospitales', lc_codigo_error, lc_descripcion_error);
         SELECT 'Error en el registro de hospital' AS estado;
     END;
 
@@ -45,8 +43,8 @@ BEGIN
             lc_codigo_error = RETURNED_SQLSTATE,
             lc_descripcion_error = MESSAGE_TEXT;
 
-        INSERT INTO bitacora_errores(tabla, codigo, descripcion) 
-        VALUES ('hospitales', lc_codigo_error, lc_descripcion_error);
+        INSERT INTO logs_errores(nombre_procedimiento, nombre_tabla, codigo_error, mensaje_error) 
+        VALUES ('proc_buscar_hospital', 'hospitales', lc_codigo_error, lc_descripcion_error);
         SELECT 'Error al buscar hospital' AS estado;
     END;
 
@@ -73,8 +71,8 @@ BEGIN
             lc_codigo_error = RETURNED_SQLSTATE,
             lc_descripcion_error = MESSAGE_TEXT;
 
-        INSERT INTO bitacora_errores(tabla, codigo, descripcion) 
-        VALUES ('hospitales', lc_codigo_error, lc_descripcion_error);
+        INSERT INTO logs_errores(nombre_procedimiento, nombre_tabla, codigo_error, mensaje_error) 
+        VALUES ('proc_actualizar_hospital', 'hospitales', lc_codigo_error, lc_descripcion_error);
         SELECT 'Error al actualizar hospital' AS estado;
     END;
 
@@ -102,8 +100,8 @@ BEGIN
             lc_codigo_error = RETURNED_SQLSTATE,
             lc_descripcion_error = MESSAGE_TEXT;
 
-        INSERT INTO bitacora_errores(tabla, codigo, descripcion) 
-        VALUES ('hospitales', lc_codigo_error, lc_descripcion_error);
+        INSERT INTO logs_errores(nombre_procedimiento, nombre_tabla, codigo_error, mensaje_error) 
+        VALUES ('proc_eliminar_hospital', 'hospitales', lc_codigo_error, lc_descripcion_error);
         SELECT 'Error al eliminar hospital' AS estado;
     END;
 

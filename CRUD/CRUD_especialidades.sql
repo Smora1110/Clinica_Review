@@ -1,4 +1,3 @@
-
 DELIMITER $$
 
 -- Procedimiento para registrar una nueva especialidad
@@ -17,8 +16,8 @@ BEGIN
             lc_codigo_error = RETURNED_SQLSTATE,
             lc_descripcion_error = MESSAGE_TEXT;
 
-        INSERT INTO bitacora_errores(tabla, codigo, descripcion) 
-        VALUES ('especialidades', lc_codigo_error, lc_descripcion_error);
+        INSERT INTO logs_errores(nombre_procedimiento, nombre_tabla, codigo_error, mensaje_error) 
+        VALUES ('proc_registrar_especialidad', 'especialidades', lc_codigo_error, lc_descripcion_error);
         SELECT 'Error en el registro de especialidad' AS estado;
     END;
 
@@ -43,8 +42,8 @@ BEGIN
             lc_codigo_error = RETURNED_SQLSTATE,
             lc_descripcion_error = MESSAGE_TEXT;
 
-        INSERT INTO bitacora_errores(tabla, codigo, descripcion) 
-        VALUES ('especialidades', lc_codigo_error, lc_descripcion_error);
+        INSERT INTO logs_errores(nombre_procedimiento, nombre_tabla, codigo_error, mensaje_error) 
+        VALUES ('proc_buscar_especialidad', 'especialidades', lc_codigo_error, lc_descripcion_error);
         SELECT 'Error al buscar especialidad' AS estado;
     END;
 
@@ -70,8 +69,8 @@ BEGIN
             lc_codigo_error = RETURNED_SQLSTATE,
             lc_descripcion_error = MESSAGE_TEXT;
 
-        INSERT INTO bitacora_errores(tabla, codigo, descripcion) 
-        VALUES ('especialidades', lc_codigo_error, lc_descripcion_error);
+        INSERT INTO logs_errores(nombre_procedimiento, nombre_tabla, codigo_error, mensaje_error) 
+        VALUES ('proc_actualizar_especialidad', 'especialidades', lc_codigo_error, lc_descripcion_error);
         SELECT 'Error al actualizar especialidad' AS estado;
     END;
 
@@ -98,8 +97,8 @@ BEGIN
             lc_codigo_error = RETURNED_SQLSTATE,
             lc_descripcion_error = MESSAGE_TEXT;
 
-        INSERT INTO bitacora_errores(tabla, codigo, descripcion) 
-        VALUES ('especialidades', lc_codigo_error, lc_descripcion_error);
+        INSERT INTO logs_errores(nombre_procedimiento, nombre_tabla, codigo_error, mensaje_error) 
+        VALUES ('proc_eliminar_especialidad', 'especialidades', lc_codigo_error, lc_descripcion_error);
         SELECT 'Error al eliminar especialidad' AS estado;
     END;
 

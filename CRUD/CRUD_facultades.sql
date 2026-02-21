@@ -1,4 +1,3 @@
-
 DELIMITER $$
 
 -- Procedimiento para registrar una nueva facultad
@@ -18,8 +17,8 @@ BEGIN
             lc_codigo_error = RETURNED_SQLSTATE,
             lc_descripcion_error = MESSAGE_TEXT;
 
-        INSERT INTO bitacora_errores(tabla, codigo, descripcion) 
-        VALUES ('facultades', lc_codigo_error, lc_descripcion_error);
+        INSERT INTO logs_errores(nombre_procedimiento, nombre_tabla, codigo_error, mensaje_error) 
+        VALUES ('proc_registrar_facultad', 'facultades', lc_codigo_error, lc_descripcion_error);
         SELECT 'Error en el registro de facultad' AS estado;
     END;
 
@@ -44,8 +43,8 @@ BEGIN
             lc_codigo_error = RETURNED_SQLSTATE,
             lc_descripcion_error = MESSAGE_TEXT;
 
-        INSERT INTO bitacora_errores(tabla, codigo, descripcion) 
-        VALUES ('facultades', lc_codigo_error, lc_descripcion_error);
+        INSERT INTO logs_errores(nombre_procedimiento, nombre_tabla, codigo_error, mensaje_error) 
+        VALUES ('proc_buscar_facultad', 'facultades', lc_codigo_error, lc_descripcion_error);
         SELECT 'Error al buscar facultad' AS estado;
     END;
 
@@ -72,8 +71,8 @@ BEGIN
             lc_codigo_error = RETURNED_SQLSTATE,
             lc_descripcion_error = MESSAGE_TEXT;
 
-        INSERT INTO bitacora_errores(tabla, codigo, descripcion) 
-        VALUES ('facultades', lc_codigo_error, lc_descripcion_error);
+        INSERT INTO logs_errores(nombre_procedimiento, nombre_tabla, codigo_error, mensaje_error) 
+        VALUES ('proc_actualizar_facultad', 'facultades', lc_codigo_error, lc_descripcion_error);
         SELECT 'Error al actualizar facultad' AS estado;
     END;
 
@@ -101,8 +100,8 @@ BEGIN
             lc_codigo_error = RETURNED_SQLSTATE,
             lc_descripcion_error = MESSAGE_TEXT;
 
-        INSERT INTO bitacora_errores(tabla, codigo, descripcion) 
-        VALUES ('facultades', lc_codigo_error, lc_descripcion_error);
+        INSERT INTO logs_errores(nombre_procedimiento, nombre_tabla, codigo_error, mensaje_error) 
+        VALUES ('proc_eliminar_facultad', 'facultades', lc_codigo_error, lc_descripcion_error);
         SELECT 'Error al eliminar facultad' AS estado;
     END;
 

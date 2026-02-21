@@ -1,4 +1,3 @@
-
 -- Creación del esquema
 CREATE SCHEMA IF NOT EXISTS `clinica_universitaria` DEFAULT CHARACTER SET utf8mb4;
 
@@ -96,11 +95,12 @@ CREATE TABLE IF NOT EXISTS `clinica_universitaria`.`recetas` (
     FOREIGN KEY (`idcita`)
     REFERENCES `clinica_universitaria`.`citas` (`idcita`));
 
--- Tabla de bitácora de errores
-CREATE TABLE IF NOT EXISTS `bitacora_errores` (
-    `id_error` INT AUTO_INCREMENT PRIMARY KEY,
-    `tabla` VARCHAR(50) NOT NULL,
-    `codigo` VARCHAR(10) NOT NULL,
-    `descripcion` TEXT,
+-- Tabla de bitácora de errores (LOGS)
+CREATE TABLE IF NOT EXISTS `logs_errores` (
+    `id_log` INT AUTO_INCREMENT PRIMARY KEY,
+    `nombre_procedimiento` VARCHAR(100) NOT NULL,
+    `nombre_tabla` VARCHAR(50) NOT NULL,
+    `codigo_error` VARCHAR(10) NOT NULL,
+    `mensaje_error` TEXT,
     `fecha_hora` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
