@@ -1,112 +1,181 @@
-DELIMITER $$
+DELIMITER //
+CREATE PROCEDURE sp_especialidades_create(IN p_idespecialidad VARCHAR(6),IN p_especialidad VARCHAR(45))
+proc_create: BEGIN
 
--- Procedimiento para registrar una nueva especialidad
-DROP PROCEDURE IF EXISTS `proc_registrar_especialidad`$$
-CREATE PROCEDURE proc_registrar_especialidad(
-    IN v_id_especialidad VARCHAR(6),
-    IN v_nombre_especialidad VARCHAR(45)
-)
-BEGIN
-    DECLARE lc_codigo_error VARCHAR(10);
-    DECLARE lc_descripcion_error TEXT;
+    DECLARE v_codigo VARCHAR(10);
+    DECLARE v_mensaje TEXT;
+
+    DECLARE CONTINUE HANDLER FOR SQLWARNING
+    BEGIN
+        GET DIAGNOSTICS CONDITION 1
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
+
+        INSERT INTO log_errores VALUES ('especialidades',v_codigo,v_mensaje,NOW());
+    END;
 
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         GET DIAGNOSTICS CONDITION 1
-            lc_codigo_error = RETURNED_SQLSTATE,
-            lc_descripcion_error = MESSAGE_TEXT;
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
 
-        INSERT INTO logs_errores(nombre_procedimiento, nombre_tabla, codigo_error, mensaje_error) 
-        VALUES ('proc_registrar_especialidad', 'especialidades', lc_codigo_error, lc_descripcion_error);
-        SELECT 'Error en el registro de especialidad' AS estado;
+        INSERT INTO log_errores VALUES ('especialidades',v_codigo,v_mensaje,NOW());
+
+        ROLLBACK;
+        SELECT 'Error al crear especialidad' AS resultado;
+        LEAVE proc_create;
     END;
 
-    INSERT INTO especialidades (idespecialidad, especialidad) 
-    VALUES (v_id_especialidad, v_nombre_especialidad);
-    SELECT 'Registro de especialidad completado exitosamente' AS estado;
+    START TRANSACTION;
 
-END$$
+    INSERT INTO especialidades VALUES (p_idespecialidad, p_especialidad);
 
--- Procedimiento para consultar una especialidad específica
-DROP PROCEDURE IF EXISTS `proc_buscar_especialidad`$$
-CREATE PROCEDURE proc_buscar_especialidad(
-    IN v_id_especialidad VARCHAR(6)
-)
-BEGIN
-    DECLARE lc_codigo_error VARCHAR(10);
-    DECLARE lc_descripcion_error TEXT;
+    COMMIT;
+
+    SELECT 'Especialidad creada correctamente' AS resultado;
+
+END //
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_especialidades_read(IN p_idespecialidad VARCHAR(6))
+proc_read: BEGIN
+
+    DECLARE v_codigo VARCHAR(10);
+    DECLARE v_mensaje TEXT;
+    DECLARE v_existe INT;
+
+    DECLARE CONTINUE HANDLER FOR SQLWARNING
+    BEGIN
+        GET DIAGNOSTICS CONDITION 1
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
+
+        INSERT INTO log_errores VALUES ('especialidades',v_codigo,v_mensaje,NOW());
+    END;
 
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         GET DIAGNOSTICS CONDITION 1
-            lc_codigo_error = RETURNED_SQLSTATE,
-            lc_descripcion_error = MESSAGE_TEXT;
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
 
-        INSERT INTO logs_errores(nombre_procedimiento, nombre_tabla, codigo_error, mensaje_error) 
-        VALUES ('proc_buscar_especialidad', 'especialidades', lc_codigo_error, lc_descripcion_error);
-        SELECT 'Error al buscar especialidad' AS estado;
+        INSERT INTO log_errores VALUES ('especialidades',v_codigo,v_mensaje,NOW());
+
+        SELECT 'Error al consultar especialidad' AS resultado;
+        LEAVE proc_read;
     END;
 
-    SELECT idespecialidad, especialidad 
-    FROM especialidades 
-    WHERE idespecialidad = v_id_especialidad;
+    SELECT COUNT(*) INTO v_existe FROM especialidades WHERE idespecialidad = p_idespecialidad;
 
-END$$
+    IF v_existe = 0 THEN
+        INSERT INTO log_errores VALUES ('especialidades','02000','Registro no encontrado',NOW());
+        SELECT 'Especialidad no encontrada' AS resultado;
+        LEAVE proc_read;
+    END IF;
 
--- Procedimiento para modificar datos de una especialidad
-DROP PROCEDURE IF EXISTS `proc_actualizar_especialidad`$$
-CREATE PROCEDURE proc_actualizar_especialidad(
-    IN v_id_especialidad VARCHAR(6),
-    IN v_nombre_especialidad VARCHAR(45)
-)
-BEGIN
-    DECLARE lc_codigo_error VARCHAR(10);
-    DECLARE lc_descripcion_error TEXT;
+    SELECT * FROM especialidades WHERE idespecialidad = p_idespecialidad;
+
+END //
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_especialidades_update(IN p_idespecialidad VARCHAR(6),IN p_especialidad VARCHAR(45))
+proc_update: BEGIN
+
+    DECLARE v_codigo VARCHAR(10);
+    DECLARE v_mensaje TEXT;
+    DECLARE v_existe INT;
+
+    DECLARE CONTINUE HANDLER FOR SQLWARNING
+    BEGIN
+        GET DIAGNOSTICS CONDITION 1
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
+
+        INSERT INTO log_errores VALUES ('especialidades',v_codigo,v_mensaje,NOW());
+    END;
 
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         GET DIAGNOSTICS CONDITION 1
-            lc_codigo_error = RETURNED_SQLSTATE,
-            lc_descripcion_error = MESSAGE_TEXT;
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
 
-        INSERT INTO logs_errores(nombre_procedimiento, nombre_tabla, codigo_error, mensaje_error) 
-        VALUES ('proc_actualizar_especialidad', 'especialidades', lc_codigo_error, lc_descripcion_error);
-        SELECT 'Error al actualizar especialidad' AS estado;
+        INSERT INTO log_errores VALUES ('especialidades',v_codigo,v_mensaje,NOW());
+
+        ROLLBACK;
+        SELECT 'Error al actualizar especialidad' AS resultado;
+        LEAVE proc_update;
     END;
 
-    UPDATE especialidades 
-    SET especialidad = v_nombre_especialidad 
-    WHERE idespecialidad = v_id_especialidad;
-    
-    SELECT 'Especialidad actualizada exitosamente' AS estado;
+    START TRANSACTION;
 
-END$$
+    SELECT COUNT(*) INTO v_existe FROM especialidades WHERE idespecialidad = p_idespecialidad;
 
--- Procedimiento para eliminar una especialidad
-DROP PROCEDURE IF EXISTS `proc_eliminar_especialidad`$$
-CREATE PROCEDURE proc_eliminar_especialidad(
-    IN v_id_especialidad VARCHAR(6)
-)
-BEGIN
-    DECLARE lc_codigo_error VARCHAR(10);
-    DECLARE lc_descripcion_error TEXT;
+    IF v_existe = 0 THEN
+        INSERT INTO log_errores VALUES ('especialidades','02000','Registro no encontrado',NOW());
+        ROLLBACK;
+        SELECT 'Especialidad no encontrada' AS resultado;
+        LEAVE proc_update;
+    END IF;
+
+    UPDATE especialidades SET especialidad = p_especialidad WHERE idespecialidad = p_idespecialidad;
+
+    COMMIT;
+
+    SELECT 'Especialidad actualizada correctamente' AS resultado;
+
+END //
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_especialidades_delete(IN p_idespecialidad VARCHAR(6))
+proc_delete: BEGIN
+
+    DECLARE v_codigo VARCHAR(10);
+    DECLARE v_mensaje TEXT;
+    DECLARE v_existe INT;
+
+    DECLARE CONTINUE HANDLER FOR SQLWARNING
+    BEGIN
+        GET DIAGNOSTICS CONDITION 1
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
+
+        INSERT INTO log_errores VALUES ('especialidades',v_codigo,v_mensaje,NOW());
+    END;
 
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         GET DIAGNOSTICS CONDITION 1
-            lc_codigo_error = RETURNED_SQLSTATE,
-            lc_descripcion_error = MESSAGE_TEXT;
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
 
-        INSERT INTO logs_errores(nombre_procedimiento, nombre_tabla, codigo_error, mensaje_error) 
-        VALUES ('proc_eliminar_especialidad', 'especialidades', lc_codigo_error, lc_descripcion_error);
-        SELECT 'Error al eliminar especialidad' AS estado;
+        INSERT INTO log_errores VALUES ('especialidades',v_codigo,v_mensaje,NOW());
+
+        ROLLBACK;
+        SELECT 'Error al eliminar especialidad' AS resultado;
+        LEAVE proc_delete;
     END;
 
-    DELETE FROM especialidades 
-    WHERE idespecialidad = v_id_especialidad;
-    
-    SELECT 'Especialidad eliminada correctamente' AS estado;
+    START TRANSACTION;
 
-END$$
+    SELECT COUNT(*) INTO v_existe FROM especialidades WHERE idespecialidad = p_idespecialidad;
 
+    IF v_existe = 0 THEN
+        INSERT INTO log_errores VALUES ('especialidades','02000','Registro no encontrado',NOW());
+        ROLLBACK;
+        SELECT 'Especialidad no encontrada' AS resultado;
+        LEAVE proc_delete;
+    END IF;
+
+    DELETE FROM especialidades WHERE idespecialidad = p_idespecialidad;
+
+    COMMIT;
+
+    SELECT 'Especialidad eliminada correctamente' AS resultado;
+
+END //
 DELIMITER ;

@@ -1,118 +1,185 @@
-DELIMITER $$
+DELIMITER //
+CREATE PROCEDURE sp_recetas_create(IN p_idreceta VARCHAR(6),IN p_dosis VARCHAR(45),IN p_idmedicamento VARCHAR(45),IN p_idcita VARCHAR(6))
+proc_create: BEGIN
 
--- Procedimiento para registrar una nueva receta
-DROP PROCEDURE IF EXISTS `proc_registrar_receta`$$
-CREATE PROCEDURE proc_registrar_receta(
-    IN v_id_receta VARCHAR(6),
-    IN v_dosis VARCHAR(45),
-    IN v_id_medicamento VARCHAR(6),
-    IN v_id_cita VARCHAR(6)
-)
-BEGIN
-    DECLARE lc_codigo_error VARCHAR(10);
-    DECLARE lc_descripcion_error TEXT;
+    DECLARE v_codigo VARCHAR(10);
+    DECLARE v_mensaje TEXT;
+
+    DECLARE CONTINUE HANDLER FOR SQLWARNING
+    BEGIN
+        GET DIAGNOSTICS CONDITION 1
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
+
+        INSERT INTO log_errores VALUES ('recetas',v_codigo,v_mensaje,NOW());
+    END;
 
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         GET DIAGNOSTICS CONDITION 1
-            lc_codigo_error = RETURNED_SQLSTATE,
-            lc_descripcion_error = MESSAGE_TEXT;
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
 
-        INSERT INTO logs_errores(nombre_procedimiento, nombre_tabla, codigo_error, mensaje_error) 
-        VALUES ('proc_registrar_receta', 'recetas', lc_codigo_error, lc_descripcion_error);
-        SELECT 'Error en el registro de receta' AS estado;
+        INSERT INTO log_errores VALUES ('recetas',v_codigo,v_mensaje,NOW());
+
+        ROLLBACK;
+        SELECT 'Error al crear receta' AS resultado;
+        LEAVE proc_create;
     END;
 
-    INSERT INTO recetas (idreceta, dosis, idmedicamento, idcita) 
-    VALUES (v_id_receta, v_dosis, v_id_medicamento, v_id_cita);
-    SELECT 'Receta registrada exitosamente' AS estado;
+    START TRANSACTION;
 
-END$$
+    INSERT INTO recetas VALUES (p_idreceta,p_dosis,p_idmedicamento,p_idcita);
 
--- Procedimiento para consultar una receta específica
-DROP PROCEDURE IF EXISTS `proc_buscar_receta`$$
-CREATE PROCEDURE proc_buscar_receta(
-    IN v_id_receta VARCHAR(6)
-)
-BEGIN
-    DECLARE lc_codigo_error VARCHAR(10);
-    DECLARE lc_descripcion_error TEXT;
+    COMMIT;
+
+    SELECT 'Receta creada correctamente' AS resultado;
+
+END //
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_recetas_read(IN p_idreceta VARCHAR(6))
+proc_read: BEGIN
+
+    DECLARE v_codigo VARCHAR(10);
+    DECLARE v_mensaje TEXT;
+    DECLARE v_existe INT;
+
+    DECLARE CONTINUE HANDLER FOR SQLWARNING
+    BEGIN
+        GET DIAGNOSTICS CONDITION 1
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
+
+        INSERT INTO log_errores VALUES ('recetas',v_codigo,v_mensaje,NOW());
+    END;
 
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         GET DIAGNOSTICS CONDITION 1
-            lc_codigo_error = RETURNED_SQLSTATE,
-            lc_descripcion_error = MESSAGE_TEXT;
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
 
-        INSERT INTO logs_errores(nombre_procedimiento, nombre_tabla, codigo_error, mensaje_error) 
-        VALUES ('proc_buscar_receta', 'recetas', lc_codigo_error, lc_descripcion_error);
-        SELECT 'Error al buscar receta' AS estado;
+        INSERT INTO log_errores VALUES ('recetas',v_codigo,v_mensaje,NOW());
+
+        SELECT 'Error al consultar receta' AS resultado;
+        LEAVE proc_read;
     END;
 
-    SELECT idreceta, dosis, idmedicamento, idcita 
-    FROM recetas 
-    WHERE idreceta = v_id_receta;
+    SELECT COUNT(*) INTO v_existe FROM recetas WHERE idreceta = p_idreceta;
 
-END$$
+    IF v_existe = 0 THEN
+        INSERT INTO log_errores VALUES ('recetas','02000','Registro no encontrado',NOW());
+        SELECT 'Receta no encontrada' AS resultado;
+        LEAVE proc_read;
+    END IF;
 
--- Procedimiento para modificar datos de una receta
-DROP PROCEDURE IF EXISTS `proc_actualizar_receta`$$
-CREATE PROCEDURE proc_actualizar_receta(
-    IN v_id_receta VARCHAR(6),
-    IN v_dosis VARCHAR(45),
-    IN v_id_medicamento VARCHAR(6),
-    IN v_id_cita VARCHAR(6)
-)
-BEGIN
-    DECLARE lc_codigo_error VARCHAR(10);
-    DECLARE lc_descripcion_error TEXT;
+    SELECT * FROM recetas WHERE idreceta = p_idreceta;
+
+END //
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_recetas_update(IN p_idreceta VARCHAR(6),IN p_dosis VARCHAR(45),IN p_idmedicamento VARCHAR(45),IN p_idcita VARCHAR(6))
+proc_update: BEGIN
+
+    DECLARE v_codigo VARCHAR(10);
+    DECLARE v_mensaje TEXT;
+    DECLARE v_existe INT;
+
+    DECLARE CONTINUE HANDLER FOR SQLWARNING
+    BEGIN
+        GET DIAGNOSTICS CONDITION 1
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
+
+        INSERT INTO log_errores VALUES ('recetas',v_codigo,v_mensaje,NOW());
+    END;
 
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         GET DIAGNOSTICS CONDITION 1
-            lc_codigo_error = RETURNED_SQLSTATE,
-            lc_descripcion_error = MESSAGE_TEXT;
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
 
-        INSERT INTO logs_errores(nombre_procedimiento, nombre_tabla, codigo_error, mensaje_error) 
-        VALUES ('proc_actualizar_receta', 'recetas', lc_codigo_error, lc_descripcion_error);
-        SELECT 'Error al actualizar receta' AS estado;
+        INSERT INTO log_errores VALUES ('recetas',v_codigo,v_mensaje,NOW());
+
+        ROLLBACK;
+        SELECT 'Error al actualizar receta' AS resultado;
+        LEAVE proc_update;
     END;
 
-    UPDATE recetas 
-    SET dosis = v_dosis, 
-        idmedicamento = v_id_medicamento,
-        idcita = v_id_cita
-    WHERE idreceta = v_id_receta;
-    
-    SELECT 'Receta actualizada exitosamente' AS estado;
+    START TRANSACTION;
 
-END$$
+    SELECT COUNT(*) INTO v_existe FROM recetas WHERE idreceta = p_idreceta;
 
--- Procedimiento para eliminar una receta
-DROP PROCEDURE IF EXISTS `proc_eliminar_receta`$$
-CREATE PROCEDURE proc_eliminar_receta(
-    IN v_id_receta VARCHAR(6)
-)
-BEGIN
-    DECLARE lc_codigo_error VARCHAR(10);
-    DECLARE lc_descripcion_error TEXT;
+    IF v_existe = 0 THEN
+        INSERT INTO log_errores VALUES ('recetas','02000','Registro no encontrado',NOW());
+        ROLLBACK;
+        SELECT 'Receta no encontrada' AS resultado;
+        LEAVE proc_update;
+    END IF;
+
+    UPDATE recetas
+    SET dosis = p_dosis,
+        idmedicamento = p_idmedicamento,
+        idcita = p_idcita
+    WHERE idreceta = p_idreceta;
+
+    COMMIT;
+
+    SELECT 'Receta actualizada correctamente' AS resultado;
+
+END //
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_recetas_delete(IN p_idreceta VARCHAR(6))
+proc_delete: BEGIN
+
+    DECLARE v_codigo VARCHAR(10);
+    DECLARE v_mensaje TEXT;
+    DECLARE v_existe INT;
+
+    DECLARE CONTINUE HANDLER FOR SQLWARNING
+    BEGIN
+        GET DIAGNOSTICS CONDITION 1
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
+
+        INSERT INTO log_errores VALUES ('recetas',v_codigo,v_mensaje,NOW());
+    END;
 
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         GET DIAGNOSTICS CONDITION 1
-            lc_codigo_error = RETURNED_SQLSTATE,
-            lc_descripcion_error = MESSAGE_TEXT;
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
 
-        INSERT INTO logs_errores(nombre_procedimiento, nombre_tabla, codigo_error, mensaje_error) 
-        VALUES ('proc_eliminar_receta', 'recetas', lc_codigo_error, lc_descripcion_error);
-        SELECT 'Error al eliminar receta' AS estado;
+        INSERT INTO log_errores VALUES ('recetas',v_codigo,v_mensaje,NOW());
+
+        ROLLBACK;
+        SELECT 'Error al eliminar receta' AS resultado;
+        LEAVE proc_delete;
     END;
 
-    DELETE FROM recetas 
-    WHERE idreceta = v_id_receta;
-    
-    SELECT 'Receta eliminada correctamente' AS estado;
+    START TRANSACTION;
 
-END$$
+    SELECT COUNT(*) INTO v_existe FROM recetas WHERE idreceta = p_idreceta;
 
+    IF v_existe = 0 THEN
+        INSERT INTO log_errores VALUES ('recetas','02000','Registro no encontrado',NOW());
+        ROLLBACK;
+        SELECT 'Receta no encontrada' AS resultado;
+        LEAVE proc_delete;
+    END IF;
+
+    DELETE FROM recetas WHERE idreceta = p_idreceta;
+
+    COMMIT;
+
+    SELECT 'Receta eliminada correctamente' AS resultado;
+
+END //
 DELIMITER ;

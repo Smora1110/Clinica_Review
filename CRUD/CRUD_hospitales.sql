@@ -1,115 +1,212 @@
-DELIMITER $$
+DELIMITER //
+CREATE PROCEDURE sp_hospitales_create(IN p_idhospital VARCHAR(6),IN p_hospital VARCHAR(45),IN p_direccion VARCHAR(45))
+proc_create: BEGIN
 
--- Procedimiento para registrar un nuevo hospital
-DROP PROCEDURE IF EXISTS `proc_registrar_hospital`$$
-CREATE PROCEDURE proc_registrar_hospital(
-    IN v_id_hospital VARCHAR(6),
-    IN v_nombre_hospital VARCHAR(45),
-    IN v_direccion_hospital VARCHAR(45)
-)
-BEGIN
-    DECLARE lc_codigo_error VARCHAR(10);
-    DECLARE lc_descripcion_error TEXT;
+    DECLARE v_codigo VARCHAR(10);
+    DECLARE v_mensaje TEXT;
+
+    DECLARE CONTINUE HANDLER FOR SQLWARNING
+    BEGIN
+        GET DIAGNOSTICS CONDITION 1
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
+
+        INSERT INTO log_errores VALUES ('hospitales',v_codigo,v_mensaje,NOW());
+    END;
 
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         GET DIAGNOSTICS CONDITION 1
-            lc_codigo_error = RETURNED_SQLSTATE,
-            lc_descripcion_error = MESSAGE_TEXT;
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
 
-        INSERT INTO logs_errores(nombre_procedimiento, nombre_tabla, codigo_error, mensaje_error) 
-        VALUES ('proc_registrar_hospital', 'hospitales', lc_codigo_error, lc_descripcion_error);
-        SELECT 'Error en el registro de hospital' AS estado;
+        INSERT INTO log_errores VALUES ('hospitales',v_codigo,v_mensaje,NOW());
+
+        ROLLBACK;
+        SELECT 'Error al crear hospital' AS resultado;
+        LEAVE proc_create;
     END;
 
-    INSERT INTO hospitales (idhospital, hospital, direccion) 
-    VALUES (v_id_hospital, v_nombre_hospital, v_direccion_hospital);
-    SELECT 'Hospital registrado exitosamente' AS estado;
+    START TRANSACTION;
 
-END$$
+    SET @sql = '
+        INSERT INTO hospitales
+        (idhospital, hospital, direccion)
+        VALUES (?, ?, ?)
+    ';
 
--- Procedimiento para consultar un hospital específico
-DROP PROCEDURE IF EXISTS `proc_buscar_hospital`$$
-CREATE PROCEDURE proc_buscar_hospital(
-    IN v_id_hospital VARCHAR(6)
-)
-BEGIN
-    DECLARE lc_codigo_error VARCHAR(10);
-    DECLARE lc_descripcion_error TEXT;
+    SET @id = p_idhospital;
+    SET @hosp = p_hospital;
+    SET @dir = p_direccion;
+
+    PREPARE stmt FROM @sql;
+    EXECUTE stmt USING @id, @hosp, @dir;
+    DEALLOCATE PREPARE stmt;
+
+    COMMIT;
+
+    SELECT 'Hospital creado correctamente' AS resultado;
+
+END //
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_hospitales_read(IN p_idhospital VARCHAR(6))
+proc_read: BEGIN
+
+    DECLARE v_codigo VARCHAR(10);
+    DECLARE v_mensaje TEXT;
+    DECLARE v_existe INT;
+
+    DECLARE CONTINUE HANDLER FOR SQLWARNING
+    BEGIN
+        GET DIAGNOSTICS CONDITION 1
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
+
+        INSERT INTO log_errores VALUES ('hospitales',v_codigo,v_mensaje,NOW());
+    END;
 
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         GET DIAGNOSTICS CONDITION 1
-            lc_codigo_error = RETURNED_SQLSTATE,
-            lc_descripcion_error = MESSAGE_TEXT;
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
 
-        INSERT INTO logs_errores(nombre_procedimiento, nombre_tabla, codigo_error, mensaje_error) 
-        VALUES ('proc_buscar_hospital', 'hospitales', lc_codigo_error, lc_descripcion_error);
-        SELECT 'Error al buscar hospital' AS estado;
+        INSERT INTO log_errores VALUES ('hospitales',v_codigo,v_mensaje,NOW());
+
+        SELECT 'Error al consultar hospital' AS resultado;
+        LEAVE proc_read;
     END;
 
-    SELECT idhospital, hospital, direccion 
-    FROM hospitales 
-    WHERE idhospital = v_id_hospital;
+    SELECT COUNT(*) INTO v_existe FROM hospitales WHERE idhospital = p_idhospital;
 
-END$$
+    IF v_existe = 0 THEN
+        INSERT INTO log_errores VALUES ('hospitales','02000','Registro no encontrado',NOW());
+        SELECT 'Hospital no encontrado' AS resultado;
+        LEAVE proc_read;
+    END IF;
 
--- Procedimiento para modificar datos de un hospital
-DROP PROCEDURE IF EXISTS `proc_actualizar_hospital`$$
-CREATE PROCEDURE proc_actualizar_hospital(
-    IN v_id_hospital VARCHAR(6),
-    IN v_nombre_hospital VARCHAR(45),
-    IN v_direccion_hospital VARCHAR(45)
-)
-BEGIN
-    DECLARE lc_codigo_error VARCHAR(10);
-    DECLARE lc_descripcion_error TEXT;
+    SELECT * FROM hospitales WHERE idhospital = p_idhospital;
+
+END //
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_hospitales_update(IN p_idhospital VARCHAR(6),IN p_hospital VARCHAR(45),IN p_direccion VARCHAR(45))
+proc_update: BEGIN
+
+    DECLARE v_codigo VARCHAR(10);
+    DECLARE v_mensaje TEXT;
+    DECLARE v_existe INT;
+
+    DECLARE CONTINUE HANDLER FOR SQLWARNING
+    BEGIN
+        GET DIAGNOSTICS CONDITION 1
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
+
+        INSERT INTO log_errores VALUES ('hospitales',v_codigo,v_mensaje,NOW());
+    END;
 
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         GET DIAGNOSTICS CONDITION 1
-            lc_codigo_error = RETURNED_SQLSTATE,
-            lc_descripcion_error = MESSAGE_TEXT;
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
 
-        INSERT INTO logs_errores(nombre_procedimiento, nombre_tabla, codigo_error, mensaje_error) 
-        VALUES ('proc_actualizar_hospital', 'hospitales', lc_codigo_error, lc_descripcion_error);
-        SELECT 'Error al actualizar hospital' AS estado;
+        INSERT INTO log_errores VALUES ('hospitales',v_codigo,v_mensaje,NOW());
+
+        ROLLBACK;
+        SELECT 'Error al actualizar hospital' AS resultado;
+        LEAVE proc_update;
     END;
 
-    UPDATE hospitales 
-    SET hospital = v_nombre_hospital, 
-        direccion = v_direccion_hospital 
-    WHERE idhospital = v_id_hospital;
-    
-    SELECT 'Hospital actualizado exitosamente' AS estado;
+    START TRANSACTION;
 
-END$$
+    SELECT COUNT(*) INTO v_existe FROM hospitales WHERE idhospital = p_idhospital;
 
--- Procedimiento para eliminar un hospital
-DROP PROCEDURE IF EXISTS `proc_eliminar_hospital`$$
-CREATE PROCEDURE proc_eliminar_hospital(
-    IN v_id_hospital VARCHAR(6)
-)
-BEGIN
-    DECLARE lc_codigo_error VARCHAR(10);
-    DECLARE lc_descripcion_error TEXT;
+    IF v_existe = 0 THEN
+        INSERT INTO log_errores VALUES ('hospitales','02000','Registro no encontrado',NOW());
+        ROLLBACK;
+        SELECT 'Hospital no encontrado' AS resultado;
+        LEAVE proc_update;
+    END IF;
+
+    SET @sql = '
+        UPDATE hospitales
+        SET hospital=?,
+            direccion=?
+        WHERE idhospital=?
+        ';
+
+    SET @hosp = p_hospital;
+    SET @dir = p_direccion;
+    SET @id  = p_idhospital;
+
+    PREPARE stmt FROM @sql;
+    EXECUTE stmt USING @hosp,@dir,@id;
+    DEALLOCATE PREPARE stmt;
+
+    COMMIT;
+
+    SELECT 'Hospital actualizado correctamente' AS resultado;
+
+END //
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_hospitales_delete(IN p_idhospital VARCHAR(6))
+proc_delete: BEGIN
+
+    DECLARE v_codigo VARCHAR(10);
+    DECLARE v_mensaje TEXT;
+    DECLARE v_existe INT;
+
+    DECLARE CONTINUE HANDLER FOR SQLWARNING
+    BEGIN
+        GET DIAGNOSTICS CONDITION 1
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
+
+        INSERT INTO log_errores VALUES ('hospitales',v_codigo,v_mensaje,NOW());
+    END;
 
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         GET DIAGNOSTICS CONDITION 1
-            lc_codigo_error = RETURNED_SQLSTATE,
-            lc_descripcion_error = MESSAGE_TEXT;
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
 
-        INSERT INTO logs_errores(nombre_procedimiento, nombre_tabla, codigo_error, mensaje_error) 
-        VALUES ('proc_eliminar_hospital', 'hospitales', lc_codigo_error, lc_descripcion_error);
-        SELECT 'Error al eliminar hospital' AS estado;
+        INSERT INTO log_errores VALUES ('hospitales',v_codigo,v_mensaje,NOW());
+
+        ROLLBACK;
+        SELECT 'Error al eliminar hospital' AS resultado;
+        LEAVE proc_delete;
     END;
 
-    DELETE FROM hospitales 
-    WHERE idhospital = v_id_hospital;
-    
-    SELECT 'Hospital eliminado correctamente' AS estado;
+    START TRANSACTION;
 
-END$$
+    SELECT COUNT(*) INTO v_existe FROM hospitales WHERE idhospital = p_idhospital;
 
+    IF v_existe = 0 THEN
+        INSERT INTO log_errores VALUES ('hospitales','02000','Registro no encontrado',NOW());
+        ROLLBACK;
+        SELECT 'Hospital no encontrado' AS resultado;
+        LEAVE proc_delete;
+    END IF;
+
+    SET @sql = 'DELETE FROM hospitales WHERE idhospital=?';
+
+    SET @id = p_idhospital;
+
+    PREPARE stmt FROM @sql;
+    EXECUTE stmt USING @id;
+    DEALLOCATE PREPARE stmt;
+
+    COMMIT;
+
+    SELECT 'Hospital eliminado correctamente' AS resultado;
+
+END //
 DELIMITER ;

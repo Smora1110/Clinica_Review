@@ -1,118 +1,215 @@
-DELIMITER $$
+DELIMITER //
+CREATE PROCEDURE sp_pacientes_create(IN p_idpaciente VARCHAR(6),IN p_nombre VARCHAR(45),IN p_apellido VARCHAR(45),IN p_telefono INT)
+proc_create: BEGIN
 
--- Procedimiento para registrar un nuevo paciente
-DROP PROCEDURE IF EXISTS `proc_registrar_paciente`$$
-CREATE PROCEDURE proc_registrar_paciente(
-    IN v_id_paciente VARCHAR(6),
-    IN v_nombre_paciente VARCHAR(45),
-    IN v_apellido_paciente VARCHAR(45),
-    IN v_telefono_paciente INT
-)
-BEGIN
-    DECLARE lc_codigo_error VARCHAR(10);
-    DECLARE lc_descripcion_error TEXT;
-    
-    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    DECLARE v_codigo VARCHAR(10);
+    DECLARE v_mensaje TEXT;
+
+    DECLARE CONTINUE HANDLER FOR SQLWARNING
     BEGIN
         GET DIAGNOSTICS CONDITION 1
-            lc_codigo_error = RETURNED_SQLSTATE,
-            lc_descripcion_error = MESSAGE_TEXT;
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
 
-        INSERT INTO logs_errores(nombre_procedimiento, nombre_tabla, codigo_error, mensaje_error) 
-        VALUES ('proc_registrar_paciente', 'pacientes', lc_codigo_error, lc_descripcion_error);
-        SELECT 'Error en el registro de paciente' AS estado;
+        INSERT INTO log_errores VALUES ('pacientes',v_codigo,v_mensaje,NOW());
     END;
-    
-    INSERT INTO pacientes (idpaciente, nombre_paciente, apellido_paciente, telefono_paciente) 
-    VALUES (v_id_paciente, v_nombre_paciente, v_apellido_paciente, v_telefono_paciente);
-    SELECT 'Paciente registrado exitosamente' AS estado;
-    
-END$$
-
--- Procedimiento para consultar un paciente específico
-DROP PROCEDURE IF EXISTS `proc_buscar_paciente`$$
-CREATE PROCEDURE proc_buscar_paciente(
-    IN v_id_paciente VARCHAR(6)
-)
-BEGIN
-    DECLARE lc_codigo_error VARCHAR(10);
-    DECLARE lc_descripcion_error TEXT;
 
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         GET DIAGNOSTICS CONDITION 1
-            lc_codigo_error = RETURNED_SQLSTATE,
-            lc_descripcion_error = MESSAGE_TEXT;
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
 
-        INSERT INTO logs_errores(nombre_procedimiento, nombre_tabla, codigo_error, mensaje_error) 
-        VALUES ('proc_buscar_paciente', 'pacientes', lc_codigo_error, lc_descripcion_error);
-        SELECT 'Error al buscar paciente' AS estado;
+        INSERT INTO log_errores VALUES ('pacientes',v_codigo,v_mensaje,NOW());
+
+        ROLLBACK;
+        SELECT 'Error al crear paciente' AS resultado;
+        LEAVE proc_create;
     END;
 
-    SELECT idpaciente, nombre_paciente, apellido_paciente, telefono_paciente 
-    FROM pacientes 
-    WHERE idpaciente = v_id_paciente;
-    
-END$$
+    START TRANSACTION;
 
--- Procedimiento para modificar datos de un paciente
-DROP PROCEDURE IF EXISTS `proc_actualizar_paciente`$$
-CREATE PROCEDURE proc_actualizar_paciente(
-    IN v_id_paciente VARCHAR(6),
-    IN v_nombre_paciente VARCHAR(45),
-    IN v_apellido_paciente VARCHAR(45),
-    IN v_telefono_paciente INT
-)
-BEGIN
-    DECLARE lc_codigo_error VARCHAR(10);
-    DECLARE lc_descripcion_error TEXT;
+    SET @sql = '
+        INSERT INTO pacientes
+        (idpaciente, nombre_paciente, apellido_paciente, telefono_paciente)
+        VALUES (?, ?, ?, ?)
+    ';
+
+    SET @id = p_idpaciente;
+    SET @nom = p_nombre;
+    SET @ape = p_apellido;
+    SET @tel = p_telefono;
+
+    PREPARE stmt FROM @sql;
+    EXECUTE stmt USING @id, @nom, @ape, @tel;
+    DEALLOCATE PREPARE stmt;
+
+    COMMIT;
+
+    SELECT 'Paciente creado correctamente' AS resultado;
+
+END //
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_pacientes_read(IN p_idpaciente VARCHAR(6))
+proc_read: BEGIN
+
+    DECLARE v_codigo VARCHAR(10);
+    DECLARE v_mensaje TEXT;
+    DECLARE v_existe INT;
+
+    DECLARE CONTINUE HANDLER FOR SQLWARNING
+    BEGIN
+        GET DIAGNOSTICS CONDITION 1
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
+
+        INSERT INTO log_errores VALUES ('pacientes',v_codigo,v_mensaje,NOW());
+    END;
 
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         GET DIAGNOSTICS CONDITION 1
-            lc_codigo_error = RETURNED_SQLSTATE,
-            lc_descripcion_error = MESSAGE_TEXT;
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
 
-        INSERT INTO logs_errores(nombre_procedimiento, nombre_tabla, codigo_error, mensaje_error) 
-        VALUES ('proc_actualizar_paciente', 'pacientes', lc_codigo_error, lc_descripcion_error);
-        SELECT 'Error al actualizar paciente' AS estado;
+        INSERT INTO log_errores VALUES ('pacientes',v_codigo,v_mensaje,NOW());
+
+        SELECT 'Error al consultar paciente' AS resultado;
+        LEAVE proc_read;
     END;
 
-    UPDATE pacientes 
-    SET nombre_paciente = v_nombre_paciente, 
-        apellido_paciente = v_apellido_paciente, 
-        telefono_paciente = v_telefono_paciente 
-    WHERE idpaciente = v_id_paciente;
-    
-    SELECT 'Paciente actualizado exitosamente' AS estado;
-    
-END$$
+    SELECT COUNT(*) INTO v_existe FROM pacientes WHERE idpaciente = p_idpaciente;
 
--- Procedimiento para eliminar un paciente
-DROP PROCEDURE IF EXISTS `proc_eliminar_paciente`$$
-CREATE PROCEDURE proc_eliminar_paciente(
-    IN v_id_paciente VARCHAR(6)
-)
-BEGIN
-    DECLARE lc_codigo_error VARCHAR(10);
-    DECLARE lc_descripcion_error TEXT;
+    IF v_existe = 0 THEN
+        INSERT INTO log_errores VALUES ('pacientes','02000','Registro no encontrado',NOW());
+        SELECT 'Paciente no encontrado' AS resultado;
+        LEAVE proc_read;
+    END IF;
+
+    SELECT * FROM pacientes WHERE idpaciente = p_idpaciente;
+
+END //
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_pacientes_update(IN p_idpaciente VARCHAR(6),IN p_nombre VARCHAR(45),IN p_apellido VARCHAR(45),IN p_telefono INT)
+proc_update: BEGIN
+
+    DECLARE v_codigo VARCHAR(10);
+    DECLARE v_mensaje TEXT;
+    DECLARE v_existe INT;
+
+    DECLARE CONTINUE HANDLER FOR SQLWARNING
+    BEGIN
+        GET DIAGNOSTICS CONDITION 1
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
+
+        INSERT INTO log_errores VALUES ('pacientes',v_codigo,v_mensaje,NOW());
+    END;
 
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         GET DIAGNOSTICS CONDITION 1
-            lc_codigo_error = RETURNED_SQLSTATE,
-            lc_descripcion_error = MESSAGE_TEXT;
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
 
-        INSERT INTO logs_errores(nombre_procedimiento, nombre_tabla, codigo_error, mensaje_error) 
-        VALUES ('proc_eliminar_paciente', 'pacientes', lc_codigo_error, lc_descripcion_error);
-        SELECT 'Error al eliminar paciente' AS estado;
+        INSERT INTO log_errores VALUES ('pacientes',v_codigo,v_mensaje,NOW());
+
+        ROLLBACK;
+        SELECT 'Error al actualizar paciente' AS resultado;
+        LEAVE proc_update;
     END;
 
-    DELETE FROM pacientes 
-    WHERE idpaciente = v_id_paciente;
-    
-    SELECT 'Paciente eliminado correctamente' AS estado;
-    
-END$$
+    START TRANSACTION;
 
+    SELECT COUNT(*) INTO v_existe FROM pacientes WHERE idpaciente = p_idpaciente;
+
+    IF v_existe = 0 THEN
+        INSERT INTO log_errores VALUES ('pacientes','02000','Registro no encontrado',NOW());
+        ROLLBACK;
+        SELECT 'Paciente no encontrado' AS resultado;
+        LEAVE proc_update;
+    END IF;
+
+    SET @sql = '
+        UPDATE pacientes
+        SET nombre_paciente=?,
+            apellido_paciente=?,
+            telefono_paciente=?
+        WHERE idpaciente=?
+        ';
+
+    SET @nom = p_nombre;
+    SET @ape = p_apellido;
+    SET @tel = p_telefono;
+    SET @id  = p_idpaciente;
+
+    PREPARE stmt FROM @sql;
+    EXECUTE stmt USING @nom,@ape,@tel,@id;
+    DEALLOCATE PREPARE stmt;
+
+    COMMIT;
+
+    SELECT 'Paciente actualizado correctamente' AS resultado;
+
+END //
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_pacientes_delete(IN p_idpaciente VARCHAR(6))
+proc_delete: BEGIN
+
+    DECLARE v_codigo VARCHAR(10);
+    DECLARE v_mensaje TEXT;
+    DECLARE v_existe INT;
+
+    DECLARE CONTINUE HANDLER FOR SQLWARNING
+    BEGIN
+        GET DIAGNOSTICS CONDITION 1
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
+
+        INSERT INTO log_errores VALUES ('pacientes',v_codigo,v_mensaje,NOW());
+    END;
+
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        GET DIAGNOSTICS CONDITION 1
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
+
+        INSERT INTO log_errores VALUES ('pacientes',v_codigo,v_mensaje,NOW());
+
+        ROLLBACK;
+        SELECT 'Error al eliminar paciente' AS resultado;
+        LEAVE proc_delete;
+    END;
+
+    START TRANSACTION;
+
+    SELECT COUNT(*) INTO v_existe FROM pacientes WHERE idpaciente = p_idpaciente;
+
+    IF v_existe = 0 THEN
+        INSERT INTO log_errores VALUES ('pacientes','02000','Registro no encontrado',NOW());
+        ROLLBACK;
+        SELECT 'Paciente no encontrado' AS resultado;
+        LEAVE proc_delete;
+    END IF;
+
+    SET @sql = 'DELETE FROM pacientes WHERE idpaciente=?';
+
+    SET @id = p_idpaciente;
+
+    PREPARE stmt FROM @sql;
+    EXECUTE stmt USING @id;
+    DEALLOCATE PREPARE stmt;
+
+    COMMIT;
+
+    SELECT 'Paciente eliminado correctamente' AS resultado;
+
+END //
 DELIMITER ;

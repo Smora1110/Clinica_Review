@@ -1,115 +1,181 @@
-DELIMITER $$
+DELIMITER //
+CREATE PROCEDURE sp_facultades_create(IN p_idfacultad VARCHAR(6),IN p_nombre VARCHAR(45),IN p_decano VARCHAR(45))
+proc_create: BEGIN
 
--- Procedimiento para registrar una nueva facultad
-DROP PROCEDURE IF EXISTS `proc_registrar_facultad`$$
-CREATE PROCEDURE proc_registrar_facultad(
-    IN v_id_facultad VARCHAR(6),
-    IN v_nombre_facultad VARCHAR(45),
-    IN v_decano VARCHAR(45)
-)
-BEGIN
-    DECLARE lc_codigo_error VARCHAR(10);
-    DECLARE lc_descripcion_error TEXT;
+    DECLARE v_codigo VARCHAR(10);
+    DECLARE v_mensaje TEXT;
+
+    DECLARE CONTINUE HANDLER FOR SQLWARNING
+    BEGIN
+        GET DIAGNOSTICS CONDITION 1
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
+
+        INSERT INTO log_errores VALUES ('facultades',v_codigo,v_mensaje,NOW());
+    END;
 
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         GET DIAGNOSTICS CONDITION 1
-            lc_codigo_error = RETURNED_SQLSTATE,
-            lc_descripcion_error = MESSAGE_TEXT;
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
 
-        INSERT INTO logs_errores(nombre_procedimiento, nombre_tabla, codigo_error, mensaje_error) 
-        VALUES ('proc_registrar_facultad', 'facultades', lc_codigo_error, lc_descripcion_error);
-        SELECT 'Error en el registro de facultad' AS estado;
+        INSERT INTO log_errores VALUES ('facultades',v_codigo,v_mensaje,NOW());
+
+        ROLLBACK;
+        SELECT 'Error al crear facultad' AS resultado;
+        LEAVE proc_create;
     END;
 
-    INSERT INTO facultades (idfacultad, nombre_facultad, decano_facultad) 
-    VALUES (v_id_facultad, v_nombre_facultad, v_decano);
-    SELECT 'Facultad registrada exitosamente' AS estado;
+    START TRANSACTION;
 
-END$$
+    INSERT INTO facultades VALUES (p_idfacultad, p_nombre, p_decano);
 
--- Procedimiento para consultar una facultad específica
-DROP PROCEDURE IF EXISTS `proc_buscar_facultad`$$
-CREATE PROCEDURE proc_buscar_facultad(
-    IN v_id_facultad VARCHAR(6)
-)
-BEGIN
-    DECLARE lc_codigo_error VARCHAR(10);
-    DECLARE lc_descripcion_error TEXT;
+    COMMIT;
+
+    SELECT 'Facultad creada correctamente' AS resultado;
+
+END //
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_facultades_read(IN p_idfacultad VARCHAR(6))
+proc_read: BEGIN
+
+    DECLARE v_codigo VARCHAR(10);
+    DECLARE v_mensaje TEXT;
+    DECLARE v_existe INT;
+
+    DECLARE CONTINUE HANDLER FOR SQLWARNING
+    BEGIN
+        GET DIAGNOSTICS CONDITION 1
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
+
+        INSERT INTO log_errores VALUES ('facultades',v_codigo,v_mensaje,NOW());
+    END;
 
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         GET DIAGNOSTICS CONDITION 1
-            lc_codigo_error = RETURNED_SQLSTATE,
-            lc_descripcion_error = MESSAGE_TEXT;
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
 
-        INSERT INTO logs_errores(nombre_procedimiento, nombre_tabla, codigo_error, mensaje_error) 
-        VALUES ('proc_buscar_facultad', 'facultades', lc_codigo_error, lc_descripcion_error);
-        SELECT 'Error al buscar facultad' AS estado;
+        INSERT INTO log_errores VALUES ('facultades',v_codigo,v_mensaje,NOW());
+
+        SELECT 'Error al consultar facultad' AS resultado;
+        LEAVE proc_read;
     END;
 
-    SELECT idfacultad, nombre_facultad, decano_facultad 
-    FROM facultades 
-    WHERE idfacultad = v_id_facultad;
+    SELECT COUNT(*) INTO v_existe FROM facultades WHERE idfacultad = p_idfacultad;
 
-END$$
+    IF v_existe = 0 THEN
+        INSERT INTO log_errores VALUES ('facultades','02000','Registro no encontrado',NOW());
+        SELECT 'Facultad no encontrada' AS resultado;
+        LEAVE proc_read;
+    END IF;
 
--- Procedimiento para modificar datos de una facultad
-DROP PROCEDURE IF EXISTS `proc_actualizar_facultad`$$
-CREATE PROCEDURE proc_actualizar_facultad(
-    IN v_id_facultad VARCHAR(6),
-    IN v_nombre_facultad VARCHAR(45),
-    IN v_decano VARCHAR(45)
-)
-BEGIN
-    DECLARE lc_codigo_error VARCHAR(10);
-    DECLARE lc_descripcion_error TEXT;
+    SELECT * FROM facultades WHERE idfacultad = p_idfacultad;
+
+END //
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_facultades_update(IN p_idfacultad VARCHAR(6),IN p_nombre VARCHAR(45),IN p_decano VARCHAR(45))
+proc_update: BEGIN
+
+    DECLARE v_codigo VARCHAR(10);
+    DECLARE v_mensaje TEXT;
+    DECLARE v_existe INT;
+
+    DECLARE CONTINUE HANDLER FOR SQLWARNING
+    BEGIN
+        GET DIAGNOSTICS CONDITION 1
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
+
+        INSERT INTO log_errores VALUES ('facultades',v_codigo,v_mensaje,NOW());
+    END;
 
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         GET DIAGNOSTICS CONDITION 1
-            lc_codigo_error = RETURNED_SQLSTATE,
-            lc_descripcion_error = MESSAGE_TEXT;
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
 
-        INSERT INTO logs_errores(nombre_procedimiento, nombre_tabla, codigo_error, mensaje_error) 
-        VALUES ('proc_actualizar_facultad', 'facultades', lc_codigo_error, lc_descripcion_error);
-        SELECT 'Error al actualizar facultad' AS estado;
+        INSERT INTO log_errores VALUES ('facultades',v_codigo,v_mensaje,NOW());
+
+        ROLLBACK;
+        SELECT 'Error al actualizar facultad' AS resultado;
+        LEAVE proc_update;
     END;
 
-    UPDATE facultades 
-    SET nombre_facultad = v_nombre_facultad, 
-        decano_facultad = v_decano 
-    WHERE idfacultad = v_id_facultad;
-    
-    SELECT 'Facultad actualizada exitosamente' AS estado;
+    START TRANSACTION;
 
-END$$
+    SELECT COUNT(*) INTO v_existe FROM facultades WHERE idfacultad = p_idfacultad;
 
--- Procedimiento para eliminar una facultad
-DROP PROCEDURE IF EXISTS `proc_eliminar_facultad`$$
-CREATE PROCEDURE proc_eliminar_facultad(
-    IN v_id_facultad VARCHAR(6)
-)
-BEGIN
-    DECLARE lc_codigo_error VARCHAR(10);
-    DECLARE lc_descripcion_error TEXT;
+    IF v_existe = 0 THEN
+        INSERT INTO log_errores VALUES ('facultades','02000','Registro no encontrado',NOW());
+        ROLLBACK;
+        SELECT 'Facultad no encontrada' AS resultado;
+        LEAVE proc_update;
+    END IF;
+
+    UPDATE facultades SET nombre_facultad = p_nombre, decano_facultad = p_decano WHERE idfacultad = p_idfacultad;
+
+    COMMIT;
+
+    SELECT 'Facultad actualizada correctamente' AS resultado;
+
+END //
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_facultades_delete(IN p_idfacultad VARCHAR(6))
+proc_delete: BEGIN
+
+    DECLARE v_codigo VARCHAR(10);
+    DECLARE v_mensaje TEXT;
+    DECLARE v_existe INT;
+
+    DECLARE CONTINUE HANDLER FOR SQLWARNING
+    BEGIN
+        GET DIAGNOSTICS CONDITION 1
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
+
+        INSERT INTO log_errores VALUES ('facultades',v_codigo,v_mensaje,NOW());
+    END;
 
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         GET DIAGNOSTICS CONDITION 1
-            lc_codigo_error = RETURNED_SQLSTATE,
-            lc_descripcion_error = MESSAGE_TEXT;
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
 
-        INSERT INTO logs_errores(nombre_procedimiento, nombre_tabla, codigo_error, mensaje_error) 
-        VALUES ('proc_eliminar_facultad', 'facultades', lc_codigo_error, lc_descripcion_error);
-        SELECT 'Error al eliminar facultad' AS estado;
+        INSERT INTO log_errores VALUES ('facultades',v_codigo,v_mensaje,NOW());
+
+        ROLLBACK;
+        SELECT 'Error al eliminar facultad' AS resultado;
+        LEAVE proc_delete;
     END;
 
-    DELETE FROM facultades 
-    WHERE idfacultad = v_id_facultad;
-    
-    SELECT 'Facultad eliminada correctamente' AS estado;
+    START TRANSACTION;
 
-END$$
+    SELECT COUNT(*) INTO v_existe FROM facultades WHERE idfacultad = p_idfacultad;
 
+    IF v_existe = 0 THEN
+        INSERT INTO log_errores VALUES ('facultades','02000','Registro no encontrado',NOW());
+        ROLLBACK;
+        SELECT 'Facultad no encontrada' AS resultado;
+        LEAVE proc_delete;
+    END IF;
+
+    DELETE FROM facultades WHERE idfacultad = p_idfacultad;
+
+    COMMIT;
+
+    SELECT 'Facultad eliminada correctamente' AS resultado;
+
+END //
 DELIMITER ;

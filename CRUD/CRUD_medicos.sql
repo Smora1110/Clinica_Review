@@ -1,118 +1,215 @@
-DELIMITER $$
+DELIMITER //
+CREATE PROCEDURE sp_medicos_create(IN p_idmedico VARCHAR(6),IN p_nombre VARCHAR(45),IN p_idfacultad VARCHAR(6),IN p_idespecialidad VARCHAR(6))
+proc_create: BEGIN
 
--- Procedimiento para registrar un nuevo médico
-DROP PROCEDURE IF EXISTS `proc_registrar_medico`$$
-CREATE PROCEDURE proc_registrar_medico(
-    IN v_id_medico VARCHAR(6),
-    IN v_nombre_medico VARCHAR(45),
-    IN v_id_facultad VARCHAR(6),
-    IN v_id_especialidad VARCHAR(6)
-)
-BEGIN
-    DECLARE lc_codigo_error VARCHAR(10);
-    DECLARE lc_descripcion_error TEXT;
-    
-    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    DECLARE v_codigo VARCHAR(10);
+    DECLARE v_mensaje TEXT;
+
+    DECLARE CONTINUE HANDLER FOR SQLWARNING
     BEGIN
         GET DIAGNOSTICS CONDITION 1
-            lc_codigo_error = RETURNED_SQLSTATE,
-            lc_descripcion_error = MESSAGE_TEXT;
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
 
-        INSERT INTO logs_errores(nombre_procedimiento, nombre_tabla, codigo_error, mensaje_error) 
-        VALUES ('proc_registrar_medico', 'medicos', lc_codigo_error, lc_descripcion_error);
-        SELECT 'Error en el registro de médico' AS estado;
+        INSERT INTO log_errores VALUES ('medicos',v_codigo,v_mensaje,NOW());
     END;
-    
-    INSERT INTO medicos (idmedico, nombre_medico, idfacultad, idespecialidad) 
-    VALUES (v_id_medico, v_nombre_medico, v_id_facultad, v_id_especialidad);
-    SELECT 'Médico registrado exitosamente' AS estado;
-    
-END$$
-
--- Procedimiento para consultar un médico específico
-DROP PROCEDURE IF EXISTS `proc_buscar_medico`$$
-CREATE PROCEDURE proc_buscar_medico(
-    IN v_id_medico VARCHAR(6)
-)
-BEGIN
-    DECLARE lc_codigo_error VARCHAR(10);
-    DECLARE lc_descripcion_error TEXT;
 
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         GET DIAGNOSTICS CONDITION 1
-            lc_codigo_error = RETURNED_SQLSTATE,
-            lc_descripcion_error = MESSAGE_TEXT;
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
 
-        INSERT INTO logs_errores(nombre_procedimiento, nombre_tabla, codigo_error, mensaje_error) 
-        VALUES ('proc_buscar_medico', 'medicos', lc_codigo_error, lc_descripcion_error);
-        SELECT 'Error al buscar médico' AS estado;
+        INSERT INTO log_errores VALUES ('medicos',v_codigo,v_mensaje,NOW());
+
+        ROLLBACK;
+        SELECT 'Error al crear médico' AS resultado;
+        LEAVE proc_create;
     END;
 
-    SELECT idmedico, nombre_medico, idfacultad, idespecialidad 
-    FROM medicos 
-    WHERE idmedico = v_id_medico;
-    
-END$$
+    START TRANSACTION;
 
--- Procedimiento para modificar datos de un médico
-DROP PROCEDURE IF EXISTS `proc_actualizar_medico`$$
-CREATE PROCEDURE proc_actualizar_medico(
-    IN v_id_medico VARCHAR(6),
-    IN v_nombre_medico VARCHAR(45),
-    IN v_id_facultad VARCHAR(6),
-    IN v_id_especialidad VARCHAR(6)
-)
-BEGIN
-    DECLARE lc_codigo_error VARCHAR(10);
-    DECLARE lc_descripcion_error TEXT;
+    SET @sql = '
+        INSERT INTO medicos
+        (idmedico, nombre_medico, idfacultad, idespecialidad)
+        VALUES (?, ?, ?, ?)
+    ';
+
+    SET @id = p_idmedico;
+    SET @nom = p_nombre;
+    SET @fac = p_idfacultad;
+    SET @esp = p_idespecialidad;
+
+    PREPARE stmt FROM @sql;
+    EXECUTE stmt USING @id, @nom, @fac, @esp;
+    DEALLOCATE PREPARE stmt;
+
+    COMMIT;
+
+    SELECT 'Médico creado correctamente' AS resultado;
+
+END //
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_medicos_read(IN p_idmedico VARCHAR(6))
+proc_read: BEGIN
+
+    DECLARE v_codigo VARCHAR(10);
+    DECLARE v_mensaje TEXT;
+    DECLARE v_existe INT;
+
+    DECLARE CONTINUE HANDLER FOR SQLWARNING
+    BEGIN
+        GET DIAGNOSTICS CONDITION 1
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
+
+        INSERT INTO log_errores VALUES ('medicos',v_codigo,v_mensaje,NOW());
+    END;
 
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         GET DIAGNOSTICS CONDITION 1
-            lc_codigo_error = RETURNED_SQLSTATE,
-            lc_descripcion_error = MESSAGE_TEXT;
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
 
-        INSERT INTO logs_errores(nombre_procedimiento, nombre_tabla, codigo_error, mensaje_error) 
-        VALUES ('proc_actualizar_medico', 'medicos', lc_codigo_error, lc_descripcion_error);
-        SELECT 'Error al actualizar médico' AS estado;
+        INSERT INTO log_errores VALUES ('medicos',v_codigo,v_mensaje,NOW());
+
+        SELECT 'Error al consultar médico' AS resultado;
+        LEAVE proc_read;
     END;
 
-    UPDATE medicos 
-    SET nombre_medico = v_nombre_medico, 
-        idfacultad = v_id_facultad, 
-        idespecialidad = v_id_especialidad 
-    WHERE idmedico = v_id_medico;
-    
-    SELECT 'Médico actualizado exitosamente' AS estado;
-    
-END$$
+    SELECT COUNT(*) INTO v_existe FROM medicos WHERE idmedico = p_idmedico;
 
--- Procedimiento para eliminar un médico
-DROP PROCEDURE IF EXISTS `proc_eliminar_medico`$$
-CREATE PROCEDURE proc_eliminar_medico(
-    IN v_id_medico VARCHAR(6)
-)
-BEGIN
-    DECLARE lc_codigo_error VARCHAR(10);
-    DECLARE lc_descripcion_error TEXT;
+    IF v_existe = 0 THEN
+        INSERT INTO log_errores VALUES ('medicos','02000','Registro no encontrado',NOW());
+        SELECT 'Médico no encontrado' AS resultado;
+        LEAVE proc_read;
+    END IF;
+
+    SELECT * FROM medicos WHERE idmedico = p_idmedico;
+
+END //
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_medicos_update(IN p_idmedico VARCHAR(6),IN p_nombre VARCHAR(45),IN p_idfacultad VARCHAR(6),IN p_idespecialidad VARCHAR(6))
+proc_update: BEGIN
+
+    DECLARE v_codigo VARCHAR(10);
+    DECLARE v_mensaje TEXT;
+    DECLARE v_existe INT;
+
+    DECLARE CONTINUE HANDLER FOR SQLWARNING
+    BEGIN
+        GET DIAGNOSTICS CONDITION 1
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
+
+        INSERT INTO log_errores VALUES ('medicos',v_codigo,v_mensaje,NOW());
+    END;
 
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         GET DIAGNOSTICS CONDITION 1
-            lc_codigo_error = RETURNED_SQLSTATE,
-            lc_descripcion_error = MESSAGE_TEXT;
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
 
-        INSERT INTO logs_errores(nombre_procedimiento, nombre_tabla, codigo_error, mensaje_error) 
-        VALUES ('proc_eliminar_medico', 'medicos', lc_codigo_error, lc_descripcion_error);
-        SELECT 'Error al eliminar médico' AS estado;
+        INSERT INTO log_errores VALUES ('medicos',v_codigo,v_mensaje,NOW());
+
+        ROLLBACK;
+        SELECT 'Error al actualizar médico' AS resultado;
+        LEAVE proc_update;
     END;
 
-    DELETE FROM medicos 
-    WHERE idmedico = v_id_medico;
-    
-    SELECT 'Médico eliminado correctamente' AS estado;
-    
-END$$
+    START TRANSACTION;
 
+    SELECT COUNT(*) INTO v_existe FROM medicos WHERE idmedico = p_idmedico;
+
+    IF v_existe = 0 THEN
+        INSERT INTO log_errores VALUES ('medicos','02000','Registro no encontrado',NOW());
+        ROLLBACK;
+        SELECT 'Médico no encontrado' AS resultado;
+        LEAVE proc_update;
+    END IF;
+
+    SET @sql = '
+        UPDATE medicos
+        SET nombre_medico=?,
+            idfacultad=?,
+            idespecialidad=?
+        WHERE idmedico=?
+        ';
+
+    SET @nom = p_nombre;
+    SET @fac = p_idfacultad;
+    SET @esp = p_idespecialidad;
+    SET @id  = p_idmedico;
+
+    PREPARE stmt FROM @sql;
+    EXECUTE stmt USING @nom, @fac, @esp, @id;
+    DEALLOCATE PREPARE stmt;
+
+    COMMIT;
+
+    SELECT 'Médico actualizado correctamente' AS resultado;
+
+END //
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_medicos_delete(IN p_idmedico VARCHAR(6))
+proc_delete: BEGIN
+
+    DECLARE v_codigo VARCHAR(10);
+    DECLARE v_mensaje TEXT;
+    DECLARE v_existe INT;
+
+    DECLARE CONTINUE HANDLER FOR SQLWARNING
+    BEGIN
+        GET DIAGNOSTICS CONDITION 1
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
+
+        INSERT INTO log_errores VALUES ('medicos',v_codigo,v_mensaje,NOW());
+    END;
+
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        GET DIAGNOSTICS CONDITION 1
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
+
+        INSERT INTO log_errores VALUES ('medicos',v_codigo,v_mensaje,NOW());
+
+        ROLLBACK;
+        SELECT 'Error al eliminar médico' AS resultado;
+        LEAVE proc_delete;
+    END;
+
+    START TRANSACTION;
+
+    SELECT COUNT(*) INTO v_existe FROM medicos WHERE idmedico = p_idmedico;
+
+    IF v_existe = 0 THEN
+        INSERT INTO log_errores VALUES ('medicos','02000','Registro no encontrado',NOW());
+        ROLLBACK;
+        SELECT 'Médico no encontrado' AS resultado;
+        LEAVE proc_delete;
+    END IF;
+
+    SET @sql = 'DELETE FROM medicos WHERE idmedico=?';
+
+    SET @id = p_idmedico;
+
+    PREPARE stmt FROM @sql;
+    EXECUTE stmt USING @id;
+    DEALLOCATE PREPARE stmt;
+
+    COMMIT;
+
+    SELECT 'Médico eliminado correctamente' AS resultado;
+
+END //
 DELIMITER ;

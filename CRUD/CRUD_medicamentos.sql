@@ -1,112 +1,181 @@
-DELIMITER $$
+DELIMITER //
+CREATE PROCEDURE sp_medicamentos_create(IN p_idmedicamento VARCHAR(6),IN p_medicamento VARCHAR(45))
+proc_create: BEGIN
 
--- Procedimiento para registrar un nuevo medicamento
-DROP PROCEDURE IF EXISTS `proc_registrar_medicamento`$$
-CREATE PROCEDURE proc_registrar_medicamento(
-    IN v_id_medicamento VARCHAR(6),
-    IN v_nombre_medicamento VARCHAR(45)
-)
-BEGIN
-    DECLARE lc_codigo_error VARCHAR(10);
-    DECLARE lc_descripcion_error TEXT;
+    DECLARE v_codigo VARCHAR(10);
+    DECLARE v_mensaje TEXT;
+
+    DECLARE CONTINUE HANDLER FOR SQLWARNING
+    BEGIN
+        GET DIAGNOSTICS CONDITION 1
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
+
+        INSERT INTO log_errores VALUES ('medicamentos',v_codigo,v_mensaje,NOW());
+    END;
 
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         GET DIAGNOSTICS CONDITION 1
-            lc_codigo_error = RETURNED_SQLSTATE,
-            lc_descripcion_error = MESSAGE_TEXT;
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
 
-        INSERT INTO logs_errores(nombre_procedimiento, nombre_tabla, codigo_error, mensaje_error) 
-        VALUES ('proc_registrar_medicamento', 'medicamentos', lc_codigo_error, lc_descripcion_error);
-        SELECT 'Error en el registro de medicamento' AS estado;
+        INSERT INTO log_errores VALUES ('medicamentos',v_codigo,v_mensaje,NOW());
+
+        ROLLBACK;
+        SELECT 'Error al crear medicamento' AS resultado;
+        LEAVE proc_create;
     END;
 
-    INSERT INTO medicamentos (idmedicamento, medicamento) 
-    VALUES (v_id_medicamento, v_nombre_medicamento);
-    SELECT 'Medicamento registrado exitosamente' AS estado;
+    START TRANSACTION;
 
-END$$
+    INSERT INTO medicamentos VALUES (p_idmedicamento,p_medicamento);
 
--- Procedimiento para consultar un medicamento específico
-DROP PROCEDURE IF EXISTS `proc_buscar_medicamento`$$
-CREATE PROCEDURE proc_buscar_medicamento(
-    IN v_id_medicamento VARCHAR(6)
-)
-BEGIN
-    DECLARE lc_codigo_error VARCHAR(10);
-    DECLARE lc_descripcion_error TEXT;
+    COMMIT;
+
+    SELECT 'Medicamento creado correctamente' AS resultado;
+
+END //
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_medicamentos_read(IN p_idmedicamento VARCHAR(6))
+proc_read: BEGIN
+
+    DECLARE v_codigo VARCHAR(10);
+    DECLARE v_mensaje TEXT;
+    DECLARE v_existe INT;
+
+    DECLARE CONTINUE HANDLER FOR SQLWARNING
+    BEGIN
+        GET DIAGNOSTICS CONDITION 1
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
+
+        INSERT INTO log_errores VALUES ('medicamentos',v_codigo,v_mensaje,NOW());
+    END;
 
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         GET DIAGNOSTICS CONDITION 1
-            lc_codigo_error = RETURNED_SQLSTATE,
-            lc_descripcion_error = MESSAGE_TEXT;
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
 
-        INSERT INTO logs_errores(nombre_procedimiento, nombre_tabla, codigo_error, mensaje_error) 
-        VALUES ('proc_buscar_medicamento', 'medicamentos', lc_codigo_error, lc_descripcion_error);
-        SELECT 'Error al buscar medicamento' AS estado;
+        INSERT INTO log_errores VALUES ('medicamentos',v_codigo,v_mensaje,NOW());
+
+        SELECT 'Error al consultar medicamento' AS resultado;
+        LEAVE proc_read;
     END;
 
-    SELECT idmedicamento, medicamento 
-    FROM medicamentos 
-    WHERE idmedicamento = v_id_medicamento;
+    SELECT COUNT(*) INTO v_existe FROM medicamentos WHERE idmedicamento = p_idmedicamento;
 
-END$$
+    IF v_existe = 0 THEN
+        INSERT INTO log_errores VALUES ('medicamentos','02000','Registro no encontrado',NOW());
+        SELECT 'Medicamento no encontrado' AS resultado;
+        LEAVE proc_read;
+    END IF;
 
--- Procedimiento para modificar datos de un medicamento
-DROP PROCEDURE IF EXISTS `proc_actualizar_medicamento`$$
-CREATE PROCEDURE proc_actualizar_medicamento(
-    IN v_id_medicamento VARCHAR(6),
-    IN v_nombre_medicamento VARCHAR(45)
-)
-BEGIN
-    DECLARE lc_codigo_error VARCHAR(10);
-    DECLARE lc_descripcion_error TEXT;
+    SELECT * FROM medicamentos WHERE idmedicamento = p_idmedicamento;
+
+END //
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_medicamentos_update(IN p_idmedicamento VARCHAR(6),IN p_medicamento VARCHAR(45))
+proc_update: BEGIN
+
+    DECLARE v_codigo VARCHAR(10);
+    DECLARE v_mensaje TEXT;
+    DECLARE v_existe INT;
+
+    DECLARE CONTINUE HANDLER FOR SQLWARNING
+    BEGIN
+        GET DIAGNOSTICS CONDITION 1
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
+
+        INSERT INTO log_errores VALUES ('medicamentos',v_codigo,v_mensaje,NOW());
+    END;
 
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         GET DIAGNOSTICS CONDITION 1
-            lc_codigo_error = RETURNED_SQLSTATE,
-            lc_descripcion_error = MESSAGE_TEXT;
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
 
-        INSERT INTO logs_errores(nombre_procedimiento, nombre_tabla, codigo_error, mensaje_error) 
-        VALUES ('proc_actualizar_medicamento', 'medicamentos', lc_codigo_error, lc_descripcion_error);
-        SELECT 'Error al actualizar medicamento' AS estado;
+        INSERT INTO log_errores VALUES ('medicamentos',v_codigo,v_mensaje,NOW());
+
+        ROLLBACK;
+        SELECT 'Error al actualizar medicamento' AS resultado;
+        LEAVE proc_update;
     END;
 
-    UPDATE medicamentos 
-    SET medicamento = v_nombre_medicamento 
-    WHERE idmedicamento = v_id_medicamento;
-    
-    SELECT 'Medicamento actualizado exitosamente' AS estado;
+    START TRANSACTION;
 
-END$$
+    SELECT COUNT(*) INTO v_existe FROM medicamentos WHERE idmedicamento = p_idmedicamento;
 
--- Procedimiento para eliminar un medicamento
-DROP PROCEDURE IF EXISTS `proc_eliminar_medicamento`$$
-CREATE PROCEDURE proc_eliminar_medicamento(
-    IN v_id_medicamento VARCHAR(6)
-)
-BEGIN
-    DECLARE lc_codigo_error VARCHAR(10);
-    DECLARE lc_descripcion_error TEXT;
+    IF v_existe = 0 THEN
+        INSERT INTO log_errores VALUES ('medicamentos','02000','Registro no encontrado',NOW());
+        ROLLBACK;
+        SELECT 'Medicamento no encontrado' AS resultado;
+        LEAVE proc_update;
+    END IF;
+
+    UPDATE medicamentos SET medicamento = p_medicamento WHERE idmedicamento = p_idmedicamento;
+
+    COMMIT;
+
+    SELECT 'Medicamento actualizado correctamente' AS resultado;
+
+END //
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_medicamentos_delete(IN p_idmedicamento VARCHAR(6))
+proc_delete: BEGIN
+
+    DECLARE v_codigo VARCHAR(10);
+    DECLARE v_mensaje TEXT;
+    DECLARE v_existe INT;
+
+    DECLARE CONTINUE HANDLER FOR SQLWARNING
+    BEGIN
+        GET DIAGNOSTICS CONDITION 1
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
+
+        INSERT INTO log_errores VALUES ('medicamentos',v_codigo,v_mensaje,NOW());
+    END;
 
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         GET DIAGNOSTICS CONDITION 1
-            lc_codigo_error = RETURNED_SQLSTATE,
-            lc_descripcion_error = MESSAGE_TEXT;
+            v_codigo = RETURNED_SQLSTATE,
+            v_mensaje = MESSAGE_TEXT;
 
-        INSERT INTO logs_errores(nombre_procedimiento, nombre_tabla, codigo_error, mensaje_error) 
-        VALUES ('proc_eliminar_medicamento', 'medicamentos', lc_codigo_error, lc_descripcion_error);
-        SELECT 'Error al eliminar medicamento' AS estado;
+        INSERT INTO log_errores VALUES ('medicamentos',v_codigo,v_mensaje,NOW());
+
+        ROLLBACK;
+        SELECT 'Error al eliminar medicamento' AS resultado;
+        LEAVE proc_delete;
     END;
 
-    DELETE FROM medicamentos 
-    WHERE idmedicamento = v_id_medicamento;
-    
-    SELECT 'Medicamento eliminado correctamente' AS estado;
+    START TRANSACTION;
 
-END$$
+    SELECT COUNT(*) INTO v_existe FROM medicamentos WHERE idmedicamento = p_idmedicamento;
 
+    IF v_existe = 0 THEN
+        INSERT INTO log_errores VALUES ('medicamentos','02000','Registro no encontrado',NOW());
+        ROLLBACK;
+        SELECT 'Medicamento no encontrado' AS resultado;
+        LEAVE proc_delete;
+    END IF;
+
+    DELETE FROM medicamentos WHERE idmedicamento = p_idmedicamento;
+
+    COMMIT;
+
+    SELECT 'Medicamento eliminado correctamente' AS resultado;
+
+END //
 DELIMITER ;
